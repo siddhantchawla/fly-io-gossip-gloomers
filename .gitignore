@@ -1,5 +1,7 @@
-// add maelstrom
 # Ignore the maelstrom directory
 maelstrom/
 # Ignore the maelstorm.tar file
 maelstrom.tar.*
+
+maelstrom-echo/store
+maelstrom-echo/maelstrom-echo
