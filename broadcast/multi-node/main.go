@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 
+	"slices"
+
 	maelstrom "github.com/jepsen-io/maelstrom/demo/go"
 )
 
@@ -13,7 +15,7 @@ func main() {
 
 	var nums []float64
 	var neighbors []string
-	n.Handle("broadcast", func (msg maelstrom.Message) error {
+	n.Handle("broadcast", func(msg maelstrom.Message) error {
 		// Unmarshal the message body as an loosely-typed map.
 		var body map[string]any
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
@@ -21,54 +23,63 @@ func main() {
 		}
 		// extract the message from the body
 		message := body["message"].(float64)
-		
-		for _, neighbor := range neighbors {
-			// send the message to all neighbors except the sender
-			if neighbor != msg.Src {
-				// send the message to the neighbor
-				n.Send(neighbor, body)
-			}
-		}
-		nums = append(nums, message)
 
-		
+		// if the message is not already in the nums slice, add it to the slice and send it to all neighbors
+		if !slices.Contains(nums, message) {
+
+			for _, neighbor := range neighbors {
+				// send the message to all neighbors except the sender
+				if neighbor != msg.Src {
+					// send the message to the neighbor
+					n.Send(neighbor, body)
+				}
+			}
+			nums = append(nums, message)
+		}
+
 		body["type"] = "broadcast_ok"
 		delete(body, "message")
-	
+
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, body)
 	})
 
-	n.Handle("read", func (msg maelstrom.Message) error {
+	n.Handle("read", func(msg maelstrom.Message) error {
 		// Unmarshal the message body as an loosely-typed map.
 		var body map[string]any
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-	
+
 		// Update the message type.
 		body["type"] = "read_ok"
 		// add the "messages" key to the body
 		body["messages"] = nums
-	
+
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, body)
 	})
 
-	n.Handle("topology", func (msg maelstrom.Message) error {
+	n.Handle("topology", func(msg maelstrom.Message) error {
 		// Unmarshal the message body as an loosely-typed map.
 		var body map[string]any
 		if err := json.Unmarshal(msg.Body, &body); err != nil {
 			return err
 		}
-	
+
 		// Update the message type.
 		body["type"] = "topology_ok"
 		// store the neighbors in the node
-		neighbors = body["topology"].(map[string]any)[n.ID()].([]string)
+		topology := body["topology"].(map[string]any)
+		rawNeighbors := topology[n.ID()].([]any)
+
+		neighbors = make([]string, 0, len(rawNeighbors))
+		for _, val := range rawNeighbors {
+			neighbors = append(neighbors, val.(string))
+		}
 		// remove the "topology" key from the body
 		delete(body, "topology")
-	
+
 		// Echo the original message back with the updated message type.
 		return n.Reply(msg, body)
 	})
