@@ -12,3 +12,8 @@ Codesspaces setup:
 - echo 'export PATH="$PATH:~/workspaces/fly-io-gossip-gloomers/maelstrom/maelstorm"' >> ~/.bashrc
 - source ~/.bashrc
 - export GOBIN=$HOME/go/bin
+
+For Compilation: 
+- go get github.com/jepsen-io/maelstrom/demo/go
+- go install .
+
